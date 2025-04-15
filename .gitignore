@@ -1,1 +1,13 @@
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Environment variables
+.env
+
+# Streamlit secrets (optional, if you have any)
+.streamlit/secrets.toml
+
+# Database files (optional, if you are using local databases)
+*.db
 
