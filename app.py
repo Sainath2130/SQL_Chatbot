@@ -3,16 +3,14 @@ import psycopg2
 import pandas as pd
 import google.generativeai as genai
 import os
-from dotenv import load_dotenv
 
-# ----------- Load Environment Variables ----------- 
-load_dotenv()  # Load the .env file to access the variables
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = os.getenv("DB_PORT")
-DB_NAME = os.getenv("DB_NAME")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
+# ----------- Load Environment Variables (Streamlit Cloud secrets) ----------- 
+GEMINI_API_KEY = st.secrets["GEMINI"]["API_KEY"]
+DB_HOST = st.secrets["postgres"]["DB_HOST"]
+DB_PORT = st.secrets["postgres"]["DB_PORT"]
+DB_NAME = st.secrets["postgres"]["DB_NAME"]
+DB_USER = st.secrets["postgres"]["DB_USER"]
+DB_PASSWORD = st.secrets["postgres"]["DB_PASSWORD"]
 
 # ----------- Configure Google Gemini ----------- 
 genai.configure(api_key=GEMINI_API_KEY)
@@ -101,7 +99,7 @@ else:
     st.sidebar.error("⚠️ Couldn't load table schema")
 
 # User input
-question = st.text_input("Type your question in English (e.g. 'Show all actors from the US'):")
+question = st.text_input("Type your question in English (e.g. 'Show all actors from the US'): ")
 
 if st.button("Get Answer"):
     if question:
