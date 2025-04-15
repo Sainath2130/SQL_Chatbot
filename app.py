@@ -5,18 +5,19 @@ import google.generativeai as genai
 import os
 from dotenv import load_dotenv
 
-# ----------- Load Environment Variables -----------
-load_dotenv()
+# ----------- Load Environment Variables ----------- 
+load_dotenv()  # Load the .env file to access the variables
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-genai.configure(api_key=GEMINI_API_KEY)
-# ----------- PostgreSQL Configuration -----------
-DB_HOST = "localhost"
-DB_PORT = "5432"
-DB_NAME = "postgres"
-DB_USER = "postgres"
-DB_PASSWORD = "123"
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
 
-# ----------- Connect and run SQL query -----------
+# ----------- Configure Google Gemini ----------- 
+genai.configure(api_key=GEMINI_API_KEY)
+
+# ----------- Connect and run SQL query ----------- 
 def read_sql_query(sql):
     try:
         conn = psycopg2.connect(
@@ -36,7 +37,7 @@ def read_sql_query(sql):
     except Exception as e:
         return [], [f"Error: {e}"]
 
-# ----------- Fetch list of tables and columns from DB -----------
+# ----------- Fetch list of tables and columns from DB ----------- 
 def get_table_schema():
     try:
         conn = psycopg2.connect(
@@ -60,10 +61,7 @@ def get_table_schema():
     except Exception as e:
         return [("Error", str(e))]
 
-# ----------- Configure Google Gemini -----------
-genai.configure(api_key=GEMINI_API_KEY)
-
-# ----------- Generate SQL Query with Gemini -----------
+# ----------- Generate SQL Query with Gemini ----------- 
 def get_gemini_response(question, schema_prompt):
     try:
         model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest")
@@ -83,7 +81,7 @@ Question: {question}
     except Exception as e:
         return f"Error generating SQL: {e}"
 
-# ----------- Streamlit UI -----------
+# ----------- Streamlit UI ----------- 
 st.set_page_config(page_title="Natural Language to SQL with Gemini + PostgreSQL")
 st.title("SQL ChatBot")
 
@@ -108,11 +106,14 @@ question = st.text_input("Type your question in English (e.g. 'Show all actors f
 if st.button("Get Answer"):
     if question:
         sql_query = get_gemini_response(question, schema_text)
-        st.write(f"🧠 Generated SQL:\n`{sql_query}`")
-        rows, columns = read_sql_query(sql_query)
+        if "Error" not in sql_query:
+            st.write(f"🧠 Generated SQL:\n`{sql_query}`")
+            rows, columns = read_sql_query(sql_query)
 
-        if rows and "Error" not in columns[0]:
-            st.subheader("📊 Query Results")
-            st.dataframe(pd.DataFrame(rows, columns=columns))
+            if rows and "Error" not in columns[0]:
+                st.subheader("📊 Query Results")
+                st.dataframe(pd.DataFrame(rows, columns=columns))
+            else:
+                st.error(columns[0])  # Show error message from DB query
         else:
-            st.error(columns[0])
+            st.error(sql_query)  # Show error message from Gemini
