@@ -2,9 +2,8 @@ import streamlit as st
 import psycopg2
 import pandas as pd
 import google.generativeai as genai
-import os
 
-# ----------- Load Environment Variables (Streamlit Cloud secrets) ----------- 
+# ----------- Load Secrets from Streamlit Cloud ----------- 
 GEMINI_API_KEY = st.secrets["GEMINI"]["API_KEY"]
 DB_HOST = st.secrets["postgres"]["DB_HOST"]
 DB_PORT = st.secrets["postgres"]["DB_PORT"]
@@ -12,10 +11,10 @@ DB_NAME = st.secrets["postgres"]["DB_NAME"]
 DB_USER = st.secrets["postgres"]["DB_USER"]
 DB_PASSWORD = st.secrets["postgres"]["DB_PASSWORD"]
 
-# ----------- Configure Google Gemini ----------- 
+# ----------- Configure Gemini ----------- 
 genai.configure(api_key=GEMINI_API_KEY)
 
-# ----------- Connect and run SQL query ----------- 
+# ----------- Connect and Run SQL Query ----------- 
 def read_sql_query(sql):
     try:
         conn = psycopg2.connect(
@@ -35,7 +34,7 @@ def read_sql_query(sql):
     except Exception as e:
         return [], [f"Error: {e}"]
 
-# ----------- Fetch list of tables and columns from DB ----------- 
+# ----------- Fetch Table Schema ----------- 
 def get_table_schema():
     try:
         conn = psycopg2.connect(
@@ -59,31 +58,29 @@ def get_table_schema():
     except Exception as e:
         return [("Error", str(e))]
 
-# ----------- Generate SQL Query with Gemini ----------- 
+# ----------- Generate SQL with Gemini ----------- 
 def get_gemini_response(question, schema_prompt):
     try:
         model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest")
-        full_prompt = f"""
-You are an expert in converting English questions to SQL queries.
-The PostgreSQL database contains the following tables and columns:
+        prompt = f"""
+You are an expert at translating English questions to PostgreSQL queries.
+Here are the tables and columns in the database:
 
 {schema_prompt}
 
-Convert the following question into an accurate PostgreSQL query.
-Return only the SQL query (no explanation, no markdown formatting):
-
+Convert this question into a valid SQL query:
 Question: {question}
-        """
-        response = model.generate_content(full_prompt)
+"""
+        response = model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
         return f"Error generating SQL: {e}"
 
 # ----------- Streamlit UI ----------- 
-st.set_page_config(page_title="Natural Language to SQL with Gemini + PostgreSQL")
-st.title("SQL ChatBot")
+st.set_page_config(page_title="SQL ChatBot", layout="wide")
+st.title("🧠 Natural Language to SQL ChatBot")
 
-# Load table and column schema from DB
+# Display Schema
 schema_data = get_table_schema()
 schema_text = ""
 if schema_data and "Error" not in schema_data[0]:
@@ -93,25 +90,24 @@ if schema_data and "Error" not in schema_data[0]:
             schema_text += f"\nTable: {table}\n"
             current_table = table
         schema_text += f"  - {column}\n"
-    st.sidebar.title("📋 Tables & Columns")
+    st.sidebar.title("📋 Database Schema")
     st.sidebar.text(schema_text)
 else:
-    st.sidebar.error("⚠️ Couldn't load table schema")
+    st.sidebar.error("⚠️ Couldn't load table schema.")
 
-# User input
-question = st.text_input("Type your question in English (e.g. 'Show all actors from the US'): ")
+# User Input
+question = st.text_input("Ask a question (e.g. 'List all users from India'):")
 
 if st.button("Get Answer"):
     if question:
         sql_query = get_gemini_response(question, schema_text)
         if "Error" not in sql_query:
-            st.write(f"🧠 Generated SQL:\n`{sql_query}`")
+            st.code(sql_query, language="sql")
             rows, columns = read_sql_query(sql_query)
-
             if rows and "Error" not in columns[0]:
                 st.subheader("📊 Query Results")
                 st.dataframe(pd.DataFrame(rows, columns=columns))
             else:
-                st.error(columns[0])  # Show error message from DB query
+                st.error(columns[0])
         else:
-            st.error(sql_query)  # Show error message from Gemini
+            st.error(sql_query)
